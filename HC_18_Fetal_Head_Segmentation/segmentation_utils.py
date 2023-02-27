@@ -4,12 +4,14 @@ Utils module for Semantic Segmentation
 import os
 import numpy as np
 import tensorflow as tf 
+import matplotlib.pyplot as plt
 from typing_extensions import Concatenate
 from tensorflow.keras.models import *
 from tensorflow.keras.layers import *
 from tensorflow.keras.callbacks import ModelCheckpoint,  CSVLogger
 from tensorflow.keras import backend as k
 from tensorflow.keras.initializers import glorot_uniform
+from tensorflow.keras.layers.experimental.preprocessing import RandomFlip, RandomRotation, RandomTranslation, RandomCrop
 
 def semantic_dict(x = 192, 
           	     y = 272,
@@ -100,6 +102,46 @@ def image_mask_split(path):
 
 	return images_list, mask_list
 
+def splitting_data(images_list, mask_list, tr=0.8):
+	"""
+	Return the list of data for training, test. Note that for the validation
+	there is the other function built for the cross validation
+
+	Parameters
+	----------
+	image_list : list
+		list of image
+
+	mask_list : list
+		mask of image
+
+	Returns
+	-------
+	train_images_list : list
+		train image list
+	
+	train_mask_list : list
+		train mask list 
+
+	test_images_list : list
+		test image list
+	
+	test_mask_list : list
+		test mask list
+
+	"""	
+	## compute the index for splitting
+	tot = len(images_list)
+	train_ind = int(tot*tr)
+
+	## split using the list index
+	train_images_list = images_list[:train_ind]
+	train_mask_list = mask_list[:train_ind]
+
+	test_images_list = images_list[train_ind:]
+	test_mask_list = mask_list[train_ind:]
+
+	return train_images_list, train_mask_list, test_images_list, test_mask_list
 
 # seed = 42
 # train_datagen = ImageDataGenerator(rotation_range=25, fill_mode='constant')
@@ -115,6 +157,25 @@ def image_mask_split(path):
 # train_generator = zip(train_image_generator,train_mask_generator)
 
 #######################################################################################################
+
+def data_augmenter():
+	"""
+	Create a Sequential model composed of 4 layers
+
+	Returns
+	------- 
+	data_augumentation: tf.keras.Sequential
+
+	"""
+	data_augmentation = tf.keras.Sequential()
+	data_augmentation.add(RandomFlip())
+	data_augmentation.add(RandomRotation(0.2)) # 15 degrees
+	# data_augmentation.add(RandomTranslation(height_factor=(-0.05, 0.05), width_factor=(-0.05, 0.05))) # 10 pixel
+	# data_augmentation.add(RandomCrop(224-int(0.1*224),224-int(0.1*224)))
+	
+	return data_augmentation
+	
+    
 
 def unet(input_size = (192,272,1)): #(params['x'],params['y'],1)
     inputs = Input(input_size)
@@ -179,3 +240,20 @@ def unet(input_size = (192,272,1)): #(params['x'],params['y'],1)
     model = Model(inputs,output)
 
     return model
+
+#####################################################################################################
+
+def dataset_visualization(dataset, take_ind=5):
+	"""
+	Plot data from dataset object
+	"""
+	for a, (image,mask) in enumerate(iter(dataset.take(take_ind))):
+		fig, arr = plt.subplots(nrows=1, ncols=2, figsize=(12,6), num=f'US images and mask sample {a}', tight_layout=True)
+		arr[0].imshow(image[0,:,:,:], cmap='gray')
+		arr[0].set_title('US fetal head')
+		arr[0].axis('off')
+
+		arr[1].imshow(mask[0,:,:,:], cmap='gray')
+		arr[1].set_title('Segmentation mask')
+		arr[1].axis('off')
+	
