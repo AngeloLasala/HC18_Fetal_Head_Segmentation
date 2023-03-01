@@ -6,48 +6,88 @@ import os
 import matplotlib.pyplot as plt
 import tensorflow as tf
 from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.callbacks import ModelCheckpoint
 
 from segmentation_utils import *
 
-def load_image_train(sample_path):
+def load_image(sample_path):
+		"""
+		Load a SINGLE couple of image and mask for segmentation
+		Parameter
+		---------
+		main_path : string
+			main path of folder
+
+		sample_name : string
+			image's path
+
+		Returns
+		------
+		real_image : tensorflow tensor
+			real image, i.e. US image
+
+		mask : tensorflow tensor
+			mask for segmentation
+		"""
+		
+		raw_image = tf.io.read_file(sample_path)
+		image = tf.image.decode_png(raw_image, channels=1)
+
+		w = tf.shape(image)[0]
+		w = w // 2
+		mask = image[:w, :, :]
+		real_image = image[w:, :, :]
+
+		mask = tf.cast(mask, tf.float32)
+		input_image = tf.cast(real_image, tf.float32)
+
+		return input_image, mask
+
+def normalize(input_image, mask):
 	"""
-	Load and preproces image for the segmentation
-
-	Parameters
-	----------
-	image_file : string
-		image's path
-
-	Returns
-	-------
-	input_image : tensorflow tensor
-		preprocessed CAM 
-	real_image : tensorflow tensor
-		preprocessed US image
+	preprocessing the mask and the image
 	"""
-
-	input_image = load_image(sample_path)
-
-	## resize
-	input_image = tf.image.resize(input_image, size=(192,272))
-
-	## normalization
+	## normalization image
 	mean = tf.math.reduce_mean(input_image)
 	std = tf.math.reduce_std(input_image)
 	input_image = (input_image - mean)/std
-	
 
-	return input_image
+	## normalization mask
+	mask = mask / 255.
 
-def load_mask_train(sample_path):
+	return input_image, mask
+
+@tf.function()
+def random_jitter(input_image, mask):
 	"""
-	Load and preproces the mask for the segmentation
+	Complete image preprocessing for Segmentation
 
+	Parameters
+	----------
+	input_image : tensorflow tensor
+		input imgage, i.e. CAM 
+	mask : tensorflow tensor
+		real image, i.e. US image
+
+	Returns
+	-------
+	
+	"""
+	# Random mirroring
+	if tf.random.uniform(()) > 0.5:
+		print('RUOTO')
+		input_image = tf.image.flip_left_right(input_image)
+		mask = tf.image.flip_left_right(mask)
+												
+	return input_image, mask
+
+def load_sample_train(sample_path):
+	"""
+	Load and preproces train_file
 	Parameters
 	----------
 	image_file : string
 		image's path
-
 	Returns
 	-------
 	input_image : tensorflow tensor
@@ -55,109 +95,94 @@ def load_mask_train(sample_path):
 	real_image : tensorflow tensor
 		preprocessed US image
 	"""
+	input_image, mask = load_image(sample_path)
+	input_image, mask = random_jitter(input_image, mask)
+	input_image, mask = normalize(input_image, mask)
 
-	input_image = load_image(sample_path)
-	
-	## resize
-	input_image = tf.image.resize(input_image, size=(192,272))
+	return input_image, mask
 
-	## normalization
-	input_image = input_image / 255.
-	
-	return input_image
-
-def make_dataset(image_list, mask_list):
+def load_sample_test(sample_path):
 	"""
-	Return the dataset composed by images and relative mask
-
+	Load and preproces train_file
 	Parameters
 	----------
-	image_list : list
-		list of image
-
-	mask_list : list
-		mask of image
-
-	Return
-	------
-	train_dataset : tensorflow dataset
-		dataset where each sample is (imgae, mask)
-
+	image_file : string
+		image's path
+	Returns
+	-------
+	input_image : tensorflow tensor
+		preprocessed CAM 
+	real_image : tensorflow tensor
+		preprocessed US image
 	"""
-	train_image_dataset = tf.data.Dataset.list_files(image_list, shuffle=False)
-	train_image_dataset = train_image_dataset.map(load_image_train,
-                                	  			num_parallel_calls=tf.data.AUTOTUNE)
+	input_image, mask = load_image(sample_path)
+	input_image, mask = normalize(input_image, mask)
 
-	train_mask_dataset = tf.data.Dataset.list_files(mask_list, shuffle=False)
-	train_mask_dataset = train_mask_dataset.map(load_mask_train,
-                                	  			num_parallel_calls=tf.data.AUTOTUNE)
-	## zip the images and the mask dataset
-	train_dataset = tf.data.Dataset.zip((train_image_dataset, train_mask_dataset))
-
-	return train_dataset
+	return input_image, mask
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description='Main for semantic segmentation of US fetal image')
+	parser.add_argument("-folder_name", default='trial', type=str, help="nome of folder where save the data")
+	parser.add_argument('-plot', action='store_true', help='extrapolate the feature. default=False')
+	args = parser.parse_args()
 
-	## images_path
+	## Main folders
 	train_path = 'Dataset/training_set'
-	save_folder = 'Model'
-
+	save_folder = 'Model/' + args.folder_name
 
 	## parameters dict
 	semantic_dict = semantic_dict(epochs=20)
-	
-	img = load_image_train(train_path + '/' + '075_HC.png')
-	mask = load_mask_train(train_path + '/' + '075_HC_Annotation.png')
-
 
 	## MAKE tf.Dataset train and validation
-	images_list, mask_list = image_mask_split(train_path)
-	images_list = [train_path + '/' + i for i in images_list]
-	mask_list = [train_path + '/' + i for i in mask_list]
+	training_path = 'Dataset/training_set_stack'
+	sample_list = [training_path + '/' + i for i in os.listdir(training_path)]
+	sample_list.sort()
 
-	# split in train and test the whole dataset
-	train_images_list, train_mask_list, test_images_list, test_mask_list = splitting_data(images_list, mask_list, tr=0.9)
-	
-	# split the tarin dataset in train and validation
-	# next: here the cross validation
-	t_train_images_list, t_train_mask_list, val_images_list, val_mask_list = splitting_data(train_images_list, train_mask_list, tr=0.8)
-	print(f'SPLITTING')
-	print(f'train:{len(t_train_images_list)}, val:{len(val_images_list)}, test:{len(test_images_list)}')
-	print(f'train:{len(t_train_mask_list)}, val:{len(val_mask_list)}, test:{len(test_mask_list)}')
+	## splitting
+	train_list, val_list, test_split = splitting_data(sample_list, splitting=(0.8,0.1,0.1))
+	print(len(train_list), len(val_list), len(test_split))
 
-	# NOTA: qui, giocando con image_list e mask list fai la divisione in train/val/test
-	train_dataset = make_dataset(t_train_images_list, t_train_mask_list)
+	## Datasets
+	train_dataset = tf.data.Dataset.list_files(train_list, shuffle=True)
+	train_dataset = train_dataset.map(load_sample_train,
+                                	  			num_parallel_calls=tf.data.AUTOTUNE)
 	train_dataset = train_dataset.batch(semantic_dict['batch_size'])
 
-	validation_dataset = make_dataset(val_images_list, val_mask_list)
-	validation_dataset = validation_dataset.batch(semantic_dict['batch_size'])
+	val_dataset = tf.data.Dataset.list_files(val_list, shuffle=True)
+	val_dataset = val_dataset.map(load_sample_test,
+                                	  			num_parallel_calls=tf.data.AUTOTUNE)
+	val_dataset = val_dataset.batch(semantic_dict['batch_size'])
 
-	# for a, (image,mask) in enumerate(iter(train_dataset.take(5))):
-	# 	fig, arr = plt.subplots(nrows=1, ncols=2, figsize=(12,6), num=f'US images and mask sample {a}', tight_layout=True)
-	# 	arr[0].imshow(image[0,:,:,:], cmap='gray')
-	# 	arr[0].set_title('US fetal head')
-	# 	arr[0].axis('off')
+	if args.plot : 
+		dataset_visualization(train_dataset, take_ind=5)
+		plt.show()
 
-	# 	arr[1].imshow(mask[0,:,:,:], cmap='gray')
-	# 	arr[1].set_title('Segmentation mask')
-	# 	arr[1].axis('off')
-	# 	plt.show()
-
-	## U-net model Training
-	model = unet(input_size = (192,272,1))
+	# U-net model Training
+	model = unet(input_size = (224,224,1))
 	print(model.summary())
 	
-	model.compile(optimizer = Adam(learning_rate = semantic_dict['learning_rate']), 
+	opt = Adam(learning_rate = semantic_dict['learning_rate'], beta_1=semantic_dict['momentum'])
+	model.compile(optimizer = opt, 
 	            loss = "binary_crossentropy", 
 				metrics = ['accuracy'])
+
+	# save only_weight
+	root = save_folder + "/net_train"
+	filepath = save_folder + "/weights/{epoch:02d}.hdf5"
+	batch_per_epoch = int(len(train_list)/semantic_dict['batch_size'])
+	print(f'batch_per_epoch: {batch_per_epoch}')
+
+	checkPoint = ModelCheckpoint(filepath, monitor='val_loss', verbose=1, 
+								save_best_only=False, save_freq=5*batch_per_epoch)
+	callbacks_list =  [checkPoint]
 
 	history = model.fit(train_dataset, verbose = 1,
 						batch_size = semantic_dict['batch_size'],
 						epochs = semantic_dict['epochs'],
-						validation_data=validation_dataset)
+						validation_data=val_dataset,
+						callbacks=callbacks_list)
 
-	## save model and loss
+	## save model, loss and hyperparameters
 	hist_accuracy = [0.] + history.history['accuracy']
 	hist_val_accuracy = [0.] + history.history['val_accuracy']
 	hist_loss = history.history['loss']
@@ -171,4 +196,10 @@ if __name__ == '__main__':
 	np.save(save_folder + '/history_val_loss', np.array(hist_val_loss))
 	np.save(save_folder + '/epoch_train', np.array(len(history.history['loss'])))
 
-		
+	with open(save_folder +'/summary.txt', 'w', encoding='utf-8') as file:
+		model.summary(print_fn=lambda x: file.write(x + '\n'))
+
+		for par in semantic_dict.keys():
+			file.write(f'\n {par}: {semantic_dict[par]} \n ')
+
+	plt.show()
