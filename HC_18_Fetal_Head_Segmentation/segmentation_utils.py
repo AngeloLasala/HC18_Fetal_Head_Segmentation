@@ -102,7 +102,7 @@ def image_mask_split(path):
 
 	return images_list, mask_list
 
-def splitting_data(images_list, mask_list, tr=0.8):
+def splitting_data(images_list, splitting=(0.9,0.1,0.1)):
 	"""
 	Return the list of data for training, test. Note that for the validation
 	there is the other function built for the cross validation
@@ -132,29 +132,17 @@ def splitting_data(images_list, mask_list, tr=0.8):
 	"""	
 	## compute the index for splitting
 	tot = len(images_list)
-	train_ind = int(tot*tr)
+	train_ind = int(tot*splitting[0])
+	val_index = int(tot*splitting[1])
+	test_index = int(tot*splitting[2])
+
 
 	## split using the list index
-	train_images_list = images_list[:train_ind]
-	train_mask_list = mask_list[:train_ind]
+	train_list = images_list[:train_ind]
+	val_list = images_list[train_ind:train_ind+val_index]
+	test_list = images_list[train_ind+val_index:]
 
-	test_images_list = images_list[train_ind:]
-	test_mask_list = mask_list[train_ind:]
-
-	return train_images_list, train_mask_list, test_images_list, test_mask_list
-
-# seed = 42
-# train_datagen = ImageDataGenerator(rotation_range=25, fill_mode='constant')
-# train_mask_datagen = ImageDataGenerator(rotation_range=25, fill_mode='constant')
-
-# train_datagen.fit(X_train, augment=True, seed=seed)
-# train_mask_datagen.fit(Y_train, augment=True, seed=seed)
-# train_image_generator = train_datagen.flow(X_train,batch_size=params['batch_size'], 
-# 											shuffle=True,seed=seed)
-# train_mask_generator = train_mask_datagen.flow(Y_train,batch_size=params['batch_size'], 
-# 											   shuffle=True, seed=seed)
-
-# train_generator = zip(train_image_generator,train_mask_generator)
+	return train_list, val_list, test_list
 
 #######################################################################################################
 
@@ -174,8 +162,7 @@ def data_augmenter():
 	# data_augmentation.add(RandomCrop(224-int(0.1*224),224-int(0.1*224)))
 	
 	return data_augmentation
-	
-    
+	    
 
 def unet(input_size = (192,272,1)): #(params['x'],params['y'],1)
     inputs = Input(input_size)
@@ -237,7 +224,7 @@ def unet(input_size = (192,272,1)): #(params['x'],params['y'],1)
     output = Conv2D(1,1, padding='same', activation='sigmoid')(conv23)
 
     #### to fill 
-    model = Model(inputs,output)
+    model = Model(inputs,conv11)
 
     return model
 
@@ -257,3 +244,96 @@ def dataset_visualization(dataset, take_ind=5):
 		arr[1].set_title('Segmentation mask')
 		arr[1].axis('off')
 	
+#####################################################################################################################################ù
+
+def dice(im1, im2, empty_score=1.0):
+	"""
+	Computes the Dice coefficient, a measure of set similarity.
+	Parameters
+	----------
+	im1 : array-like, bool
+		Any array of arbitrary size. If not boolean, will be converted.
+	im2 : array-like, bool
+		Any other array of identical size. If not boolean, will be converted.
+	Returns
+	-------
+	dice : float
+		Dice coefficient as a float on range [0,1].
+		Maximum similarity = 1
+		No similarity = 0
+		Both are empty (sum eq to zero) = empty_score
+		
+	Notes
+	-----
+	The order of inputs for `dice` is irrelevant. The result will be
+	identical if `im1` and `im2` are switched.
+	"""
+	im1 = np.asarray(im1).astype(bool)
+	im2 = np.asarray(im2).astype(bool)
+	
+	if im1.shape != im2.shape:
+		raise ValueError("Shape mismatch: im1 and im2 must have the same shape.")
+
+	if len(im1.shape)==2:
+		im_sum = im1.sum() + im2.sum()
+		# im_sum = np.logical_or(im1, im2).sum()
+		if im_sum == 0:
+			return empty_score
+
+		# Compute Dice coefficient
+		intersection = np.logical_and(im1, im2).sum()
+
+		print("intersection:", intersection)
+		print("union:", im_sum)
+
+		return 2. * intersection.sum() / im_sum.sum()
+
+	else:
+		im_sum = 0
+		intersection = 0
+		for c in range(im1.shape[-1]):
+			im_sum += im1[:,:,c].sum() + im2[:,:,c].sum()
+			# im_sum = np.logical_or(im1[0,:,:,c], im2[0,:,:,c]).sum()
+			if im_sum == 0:
+				return empty_score
+
+			# Compute Dice coefficient
+			intersection = np.logical_and(im1[:,:,c], im2[:,:,c]).sum()
+
+			print("intersection on channel" + str(c) + ": " + str(intersection))
+			print("union on channel" + str(c) + ": " + str(im_sum))
+
+			return 2. * intersection.sum() / im_sum.sum()
+
+def DSC(im1, im2):
+	"""
+	Dice similarity coefficient for single channel images
+
+	Parameters
+	----------
+	im1: 2darray
+		first image
+
+	im2: 2darray
+		second image
+
+	Results
+	-------
+	dice: float
+		dice similarity coefficient
+	"""
+	im1 = np.asarray(im1).astype(bool)
+	im2 = np.asarray(im2).astype(bool)
+
+	if im1.shape != im2.shape:
+		raise ValueError("Shape mismatch: im1 and im2 must have the same shape.")
+
+	TP = np.logical_and(im1,im2).sum()    
+	FP_FN = np.logical_xor(im1,im2).sum() 
+
+	# print("true positives:", TP)
+	# print("false neg + false pos:", FP_FN)
+
+	dsc = 2.*TP/(2.*TP+FP_FN)
+
+	return dsc
