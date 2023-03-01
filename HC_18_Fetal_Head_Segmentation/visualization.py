@@ -79,6 +79,24 @@ def save_filled_mask(mask_list, training_path='Dataset/training_set'):
 		print(f'filling image {N}')
 		mask = fill_mask(mask_list, training_path='Dataset/training_set', N=N)
 		cv.imwrite(training_path + '/' + mask_list[N], mask)
+
+def saving_stack_image(images_list, mask_list, dim=(224,224), training_path_save='Dataset/training_set_stack'):
+	"""
+	Saving the image in vertical stack fascion to make easy the dataaugumentation
+	"""
+	for N in range(len(mask_list)):
+		mask = fill_mask(mask_list, training_path='Dataset/training_set', N=N)
+		image = cv.imread(train_path + '/' + images_list[N], cv.IMREAD_GRAYSCALE)
+
+		mask = cv.resize(mask, dim, interpolation=cv.INTER_CUBIC)
+		image = cv.resize(image, dim, interpolation=cv.INTER_CUBIC)
+		# print(N, mask.shape, image.shape)
+
+		stack_image = np.vstack((mask,image))
+		plt.figure()
+		plt.imshow(stack_image, cmap='gray')
+		
+		cv.imwrite(training_path_save + '/' + mask_list[N], stack_image)
 		
 def visualize_img_mask(image_list, mask_list, training_path='Dataset/training_set', N=6, filling=False):
 	"""
@@ -135,7 +153,7 @@ if __name__ == '__main__':
 	saving = False
 	if saving : save_filled_mask(mask_list)
 
-	
-	plt.show()
-
+	saving_stack = True
+	if  saving_stack: 
+		saving_stack_image(images_list, mask_list, dim=(224,224))
 
