@@ -102,6 +102,34 @@ def image_mask_split(path):
 
 	return images_list, mask_list
 
+def random_shuffle(images_list):
+	"""
+	The sorted list of data have a problem, the head circunferance are arrange 
+	in a crescent fashion. This must be a problem for the generalization and for
+	the hc measure.
+
+	The data are randomly shuffle before the splitting
+
+	Parameters
+	----------
+	images_list : list
+		original list of sample
+
+	Returns
+	-------
+	"""
+	## random shuffle of the images list indeces
+	random_list = np.arange(len(images_list))
+	np.random.shuffle(random_list)
+	
+	## shuffle the image list
+	images_list = [images_list[i] for i in random_list]
+
+	return random_list, images_list
+
+
+
+
 def splitting_data(images_list, splitting=(0.9,0.1,0.1)):
 	"""
 	Return the list of data for training, test. Note that for the validation
@@ -224,7 +252,7 @@ def unet(input_size = (192,272,1)): #(params['x'],params['y'],1)
     output = Conv2D(1,1, padding='same', activation='sigmoid')(conv23)
 
     #### to fill 
-    model = Model(inputs,conv11)
+    model = Model(inputs,output)
 
     return model
 
