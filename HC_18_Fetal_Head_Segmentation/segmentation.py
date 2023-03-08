@@ -164,51 +164,63 @@ if __name__ == '__main__':
 	val_dataset = val_dataset.batch(semantic_dict['batch_size'])
 
 	if args.plot : 
-		dataset_visualization(train_dataset, take_ind=5)
+		dataset_visualization(train_dataset, take_ind=1)
+
+		# data augumentation 
+		for i, (img,mask) in enumerate(iter(train_dataset.take(1))):
+				for i in range(4):
+					rj_img, rj_mask = random_jitter(img, mask)
+					fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(12,6), num=f'data augumentation{i}', tight_layout=True)
+					ax[0].imshow(rj_img[0,:,:,:],cmap='gray')
+					ax[0].axis('off')
+
+					ax[1].imshow(rj_mask[0,:,:,:],cmap='gray')
+					ax[1].axis('off')
+
 		plt.show()
 
-	# U-net model Training
-	model = unet(input_size = (224,224,1))
-	print(model.summary())
+	# # U-net model Training
+	# model = unet(input_size = (224,224,1))
+	# print(model.summary())
 	
-	opt = Adam(learning_rate = semantic_dict['learning_rate'], beta_1=semantic_dict['momentum'])
-	model.compile(optimizer = opt, 
-	            loss = "binary_crossentropy", 
-				metrics = ['accuracy'])
+	# opt = Adam(learning_rate = semantic_dict['learning_rate'], beta_1=semantic_dict['momentum'])
+	# model.compile(optimizer = opt, 
+	#             loss = "binary_crossentropy", 
+	# 			metrics = ['accuracy'])
 
-	# save only_weight
-	root = save_folder + "/net_train"
-	filepath = save_folder + "/weights/{epoch:02d}.hdf5"
-	batch_per_epoch = int(len(train_list)/semantic_dict['batch_size'])
-	print(f'batch_per_epoch: {batch_per_epoch}')
+	# # save only_weight
+	# root = save_folder + "/net_train"
+	# filepath = save_folder + "/weights/{epoch:02d}.hdf5"
+	# batch_per_epoch = int(len(train_list)/semantic_dict['batch_size'])
+	# print(f'batch_per_epoch: {batch_per_epoch}')
 
-	checkPoint = ModelCheckpoint(filepath, monitor='val_loss', verbose=1, 
-								save_best_only=False, save_freq=10*batch_per_epoch)
-	callbacks_list =  [checkPoint]
+	# checkPoint = ModelCheckpoint(filepath, monitor='val_loss', verbose=1, 
+	# 							save_best_only=False, save_freq=10*batch_per_epoch)
+	# callbacks_list =  [checkPoint]
 
-	history = model.fit(train_dataset, verbose = 1,
-						batch_size = semantic_dict['batch_size'],
-						epochs = semantic_dict['epochs'],
-						validation_data=val_dataset,
-						callbacks=callbacks_list)
+	# history = model.fit(train_dataset, verbose = 1,
+	# 					batch_size = semantic_dict['batch_size'],
+	# 					epochs = semantic_dict['epochs'],
+	# 					validation_data=val_dataset,
+	# 					callbacks=callbacks_list)
 
-	## save model, loss and hyperparameters
-	hist_accuracy = [0.] + history.history['accuracy']
-	hist_val_accuracy = [0.] + history.history['val_accuracy']
-	hist_loss = history.history['loss']
-	hist_val_loss = history.history['val_loss']
-	epochs_train = len(history.history['loss'])
+	# ## save model, loss and hyperparameters
+	# hist_accuracy = [0.] + history.history['accuracy']
+	# hist_val_accuracy = [0.] + history.history['val_accuracy']
+	# hist_loss = history.history['loss']
+	# hist_val_loss = history.history['val_loss']
+	# epochs_train = len(history.history['loss'])
 
-	# model.save(save_folder + '/first_try', save_format='h5')
-	np.save(save_folder + '/random_index', random_index)
-	np.save(save_folder + '/history_accuracy', np.array(hist_accuracy))
-	np.save(save_folder + '/history_val_accuracy', np.array(hist_val_accuracy))
-	np.save(save_folder + '/history_loss', np.array(hist_loss))
-	np.save(save_folder + '/history_val_loss', np.array(hist_val_loss))
-	np.save(save_folder + '/epoch_train', np.array(len(history.history['loss'])))
+	# # model.save(save_folder + '/first_try', save_format='h5')
+	# np.save(save_folder + '/random_index', random_index)
+	# np.save(save_folder + '/history_accuracy', np.array(hist_accuracy))
+	# np.save(save_folder + '/history_val_accuracy', np.array(hist_val_accuracy))
+	# np.save(save_folder + '/history_loss', np.array(hist_loss))
+	# np.save(save_folder + '/history_val_loss', np.array(hist_val_loss))
+	# np.save(save_folder + '/epoch_train', np.array(len(history.history['loss'])))
 
-	with open(save_folder +'/summary.txt', 'w', encoding='utf-8') as file:
-		model.summary(print_fn=lambda x: file.write(x + '\n'))
+	# with open(save_folder +'/summary.txt', 'w', encoding='utf-8') as file:
+	# 	model.summary(print_fn=lambda x: file.write(x + '\n'))
 
-		for par in semantic_dict.keys():
-			file.write(f'\n {par}: {semantic_dict[par]} \n ')
+	# 	for par in semantic_dict.keys():
+	# 		file.write(f'\n {par}: {semantic_dict[par]} \n ')
