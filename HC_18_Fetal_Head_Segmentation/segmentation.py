@@ -8,6 +8,7 @@ import tensorflow as tf
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.callbacks import ModelCheckpoint
 
+import random
 from segmentation_utils import *
 
 def load_image(sample_path):
@@ -75,9 +76,13 @@ def random_jitter(input_image, mask):
 	"""
 	# Random mirroring
 	if tf.random.uniform(()) > 0.5:
-		print('RUOTO')
 		input_image = tf.image.flip_left_right(input_image)
 		mask = tf.image.flip_left_right(mask)
+
+	# Random flip
+	if tf.random.uniform(()) > 0.5:
+		input_image = tf.image.flip_up_down(input_image)
+		mask = tf.image.flip_up_down(mask)
 												
 	return input_image, mask
 
@@ -131,21 +136,26 @@ if __name__ == '__main__':
 	save_folder = 'Model/' + args.folder_name
 
 	## parameters dict
-	semantic_dict = semantic_dict(epochs=20)
+	semantic_dict = semantic_dict(epochs=40)
 
 	## MAKE tf.Dataset train and validation
 	training_path = 'Dataset/training_set_stack'
 	sample_list = [training_path + '/' + i for i in os.listdir(training_path)]
-	sample_list.sort()
-
+	random_index, sample_list = random_shuffle(sample_list)
+	for i,j in zip(random_index[:10], sample_list[:10]):
+		print(i,j)
+	
 	## splitting
-	train_list, val_list, test_split = splitting_data(sample_list, splitting=(0.8,0.1,0.1))
-	print(len(train_list), len(val_list), len(test_split))
+	train_list, val_list, test_list = splitting_data(sample_list, splitting=(0.8,0.1,0.1))
+	for aa in train_list[:10]:
+		print(aa)
+	print(len(train_list), len(val_list), len(test_list))
 
 	## Datasets
 	train_dataset = tf.data.Dataset.list_files(train_list, shuffle=True)
 	train_dataset = train_dataset.map(load_sample_train,
                                 	  			num_parallel_calls=tf.data.AUTOTUNE)
+	train_dataset = train_dataset.shuffle(len(train_list))
 	train_dataset = train_dataset.batch(semantic_dict['batch_size'])
 
 	val_dataset = tf.data.Dataset.list_files(val_list, shuffle=True)
@@ -173,7 +183,7 @@ if __name__ == '__main__':
 	print(f'batch_per_epoch: {batch_per_epoch}')
 
 	checkPoint = ModelCheckpoint(filepath, monitor='val_loss', verbose=1, 
-								save_best_only=False, save_freq=5*batch_per_epoch)
+								save_best_only=False, save_freq=10*batch_per_epoch)
 	callbacks_list =  [checkPoint]
 
 	history = model.fit(train_dataset, verbose = 1,
@@ -189,7 +199,8 @@ if __name__ == '__main__':
 	hist_val_loss = history.history['val_loss']
 	epochs_train = len(history.history['loss'])
 
-	model.save(save_folder + '/first_try', save_format='h5')
+	# model.save(save_folder + '/first_try', save_format='h5')
+	np.save(save_folder + '/random_index', random_index)
 	np.save(save_folder + '/history_accuracy', np.array(hist_accuracy))
 	np.save(save_folder + '/history_val_accuracy', np.array(hist_val_accuracy))
 	np.save(save_folder + '/history_loss', np.array(hist_loss))
@@ -201,5 +212,3 @@ if __name__ == '__main__':
 
 		for par in semantic_dict.keys():
 			file.write(f'\n {par}: {semantic_dict[par]} \n ')
-
-	plt.show()
