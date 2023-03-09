@@ -87,9 +87,10 @@ def random_jitter(input_image, mask):
 
 	# Random rotation
 	if tf.random.uniform(()) > 0.5:
-		print(tf.random.uniform(()) > 0.5)
-		input_image = tfa.image.rotate(input_image, tf.constant(np.pi/10))
-		mask = tfa.image.rotate(mask, tf.constant(np.pi/10))
+		angle = np.pi/10
+		 
+		input_image = tfa.image.rotate(input_image, tf.constant(angle))
+		mask = tfa.image.rotate(mask, tf.constant(angle))
 										
 	return input_image, mask
 
@@ -171,11 +172,11 @@ if __name__ == '__main__':
 	val_dataset = val_dataset.batch(semantic_dict['batch_size'])
 
 	if args.plot : 
-		dataset_visualization(train_dataset, take_ind=1)
+		dataset_visualization(train_dataset, take_ind=10)
 
 		# data augumentation 
 		for i, (img,mask) in enumerate(iter(train_dataset.take(1))):
-				for i in range(10):
+				for i in range(1):
 					rj_img, rj_mask = random_jitter(img, mask)
 					fig, ax = plt.subplots(nrows=1, ncols=3, figsize=(12,6), num=f'data augumentation{i}', tight_layout=True)
 					ax[0].imshow(rj_img[0,:,:,:],cmap='gray')
