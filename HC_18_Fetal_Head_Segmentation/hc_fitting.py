@@ -101,7 +101,7 @@ def fit_ellipse(input_image, thickness=1):
 
 	# Draw the ellipses on a copy of the mask
 	mask_with_ellipses = np.zeros_like(input_image)
-	for ellipse in ellipses[:1]:
+	for ellipse in ellipses[:]:
 		ell = cv.ellipse(mask_with_ellipses, ellipse, (255), thickness=thickness)
 
 	return ellipses, ell
