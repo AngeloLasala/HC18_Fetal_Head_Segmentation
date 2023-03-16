@@ -5,7 +5,7 @@ import argparse
 import os
 import matplotlib.pyplot as plt
 import tensorflow as tf
-import tensorflow_addons as tfa
+# import tensorflow_addons as tfa
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.callbacks import ModelCheckpoint
 from sklearn.model_selection import KFold
@@ -88,12 +88,12 @@ def random_jitter(input_image, mask, rot=False):
 		mask = tf.image.flip_up_down(mask)
 
 	# Random rotation
-	if rot:
-		if tf.random.uniform(()) > 0.5:
-			angle = np.pi/10
+	# if rot:
+	# 	if tf.random.uniform(()) > 0.5:
+	# 		angle = np.pi/10
 				
-			input_image = tfa.image.rotate(input_image, tf.constant(angle))
-			mask = tfa.image.rotate(mask, tf.constant(angle))
+	# 		input_image = tfa.image.rotate(input_image, tf.constant(angle))
+	# 		mask = tfa.image.rotate(mask, tf.constant(angle))
 										
 	return input_image, mask
 
@@ -142,7 +142,7 @@ def load_sample_train_rot(sample_path):
 
 def load_sample_test(sample_path):
 	"""
-	Load and preproces train_file
+	Load and preproces train_fileload_sample_train
 	Parameters
 	----------
 	image_file : string
@@ -162,7 +162,8 @@ def load_sample_test(sample_path):
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description='Main for semantic segmentation of US fetal image')
 	parser.add_argument("-folder_name", default='trial', type=str, help="nome of folder where save the data")
-	parser.add_argument('-plot', action='store_true', help='extrapolate the feature. default=False')
+	parser.add_argument('-plot', action='store_true', help='plotting. default=False')
+	parser.add_argument('-cv', action='store_true', help='cross validation. default=False')
 	args = parser.parse_args()
 
 	## Main folders
@@ -170,7 +171,7 @@ if __name__ == '__main__':
 	save_folder = 'Model/' + args.folder_name
 
 	## parameters dict
-	semantic_dict = semantic_dict(epochs=30)
+	semantic_dict = semantic_dict(epochs=40)
 
 	## MAKE tf.Dataset train and validation
 	training_path = 'Dataset/training_set_stack'
@@ -199,7 +200,7 @@ if __name__ == '__main__':
 	print(cross_dataset_dict.keys())
 
 
-	cross_vall_bool = True
+	cross_vall_bool = args.cv
 	if cross_vall_bool:
 		cross_folder = save_folder + '/cross'
 		smart_makedir(cross_folder)
@@ -276,6 +277,7 @@ if __name__ == '__main__':
 			# data augumentation 
 			for i, (img,mask) in enumerate(iter(train_dataset.take(1))):
 					for i in range(1):
+						print(img.shape, mask.shape)
 						rj_img, rj_mask = random_jitter(img, mask)
 						fig, ax = plt.subplots(nrows=1, ncols=3, figsize=(12,6), num=f'data augumentation{i}', tight_layout=True)
 						ax[0].imshow(rj_img[0,:,:,:],cmap='gray')
@@ -291,7 +293,7 @@ if __name__ == '__main__':
 			plt.show()
 
 		# U-net model Training
-		model = unet(input_size = (224,224,1))
+		model = unet(input_size = (176,256,1))
 		print(model.summary())
 
 		opt = Adam(learning_rate = semantic_dict['learning_rate'], beta_1=semantic_dict['momentum'])
