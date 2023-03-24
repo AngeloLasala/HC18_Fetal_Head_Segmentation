@@ -190,6 +190,70 @@ def data_augmenter():
 	# data_augmentation.add(RandomCrop(224-int(0.1*224),224-int(0.1*224)))
 	
 	return data_augmentation
+
+def resize(input_image, mask, height, width):
+	"""
+	Resize the input and the real image for gan
+
+	Parameters
+	----------
+	input_image : tensorflow tensor
+		input imgage, i.e. real US image 
+
+	mask : tensorflow tensor
+		seg mask
+
+	height : integer
+		height of resized image 
+
+	width : integer
+		width of resized image
+
+	Returns
+	-------
+	input_image : tensorflow tensor
+		resized CAM 
+
+	real_image : tensorflow tensor
+		resized US image
+	"""
+	input_image = tf.image.resize(input_image, [height, width],
+								method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+	mask = tf.image.resize(mask, [height, width],
+								method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+
+	return input_image, mask
+
+def random_crop(input_image, mask, height, width):
+	"""
+	Random cropping of input and the real image for gan
+
+	Parameters
+	----------
+	input_image : tensorflow tensor
+		input imgage, i.e. CAM 
+
+	real_image : tensorflow tensor
+		real image, i.e. US image
+
+	height : integer
+		height of cropped image 
+
+	width : integer
+		width of cropped image
+	Returns
+	-------
+	cropped_image : tensorflow tensor
+		cropped CAM 
+
+	cropped_image : tensorflow tensor
+		cropped US image
+	"""
+	stacked_image = tf.stack([input_image, mask], axis=0)
+	cropped_image = tf.image.random_crop(
+		stacked_image, size=[2, height, width, 1])
+
+	return cropped_image[0], cropped_image[1]
 	    
 
 def unet(input_size = (192,272,1)): #(params['x'],params['y'],1)

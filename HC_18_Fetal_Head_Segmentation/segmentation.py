@@ -72,20 +72,24 @@ def random_jitter(input_image, mask, rot=False):
 		input imgage, i.e. CAM 
 	mask : tensorflow tensor
 		real image, i.e. US image
-
-	Returns
-	-------
+input_image, mask
 	
 	"""
+	# resize the imagage to 206*286
+	input_image, mask = resize(input_image, mask, 206, 286)
+
+	# Random Cropbask to 176*256
+	input_image, mask = random_crop(input_image, mask, 176, 256)
+	print(input_image.shape)
 	# Random mirroring
 	if tf.random.uniform(()) > 0.5:
 		input_image = tf.image.flip_left_right(input_image)
 		mask = tf.image.flip_left_right(mask)
 
-	# Random flip
-	if tf.random.uniform(()) > 0.5:
-		input_image = tf.image.flip_up_down(input_image)
-		mask = tf.image.flip_up_down(mask)
+	# # Random flip
+	# if tf.random.uniform(()) > 0.5:
+	# 	input_image = tf.image.flip_up_down(input_image)
+	# 	mask = tf.image.flip_up_down(mask)
 
 	# Random rotation
 	# if rot:
@@ -275,20 +279,20 @@ if __name__ == '__main__':
 			dataset_visualization(train_dataset, take_ind=10)
 
 			# data augumentation 
-			for i, (img,mask) in enumerate(iter(train_dataset.take(1))):
-					for i in range(1):
-						print(img.shape, mask.shape)
-						rj_img, rj_mask = random_jitter(img, mask)
-						fig, ax = plt.subplots(nrows=1, ncols=3, figsize=(12,6), num=f'data augumentation{i}', tight_layout=True)
-						ax[0].imshow(rj_img[0,:,:,:],cmap='gray')
-						ax[0].axis('off')
+			# for i, (img,mask) in enumerate(iter(train_dataset.take(1))):
+			# 		for i in range(1):
+			# 			print(img.shape, mask.shape)
+			# 			rj_img, rj_mask = random_jitter(img, mask)
+			# 			fig, ax = plt.subplots(nrows=1, ncols=3, figsize=(12,6), num=f'data augumentation{i}', tight_layout=True)
+			# 			ax[0].imshow(rj_img[0,:,:,:],cmap='gray')
+			# 			ax[0].axis('off')
 
-						ax[1].imshow(rj_mask[0,:,:,:],cmap='gray')
-						ax[1].axis('off')
+			# 			ax[1].imshow(rj_mask[0,:,:,:],cmap='gray')
+			# 			ax[1].axis('off')
 
-						ax[2].imshow(rj_img[0,:,:,:],cmap='gray')
-						ax[2].imshow(rj_mask[0,:,:,:],cmap='jet',alpha=0.6)
-						ax[2].axis('off')
+			# 			ax[2].imshow(rj_img[0,:,:,:],cmap='gray')
+			# 			ax[2].imshow(rj_mask[0,:,:,:],cmap='jet',alpha=0.6)
+			# 			ax[2].axis('off')
 
 			plt.show()
 

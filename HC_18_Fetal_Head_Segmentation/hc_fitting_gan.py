@@ -71,15 +71,16 @@ def process_mask(mask_path, dim):
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description='make the data sample for pix2pix train (cam,image,mask)')
-	parser.add_argument("fetal_plane", default='', type=str, help="nome of featl standard planes (TC, TT, TT)")
+	parser.add_argument("fetal_plane", default='', type=str, help="nome of featl standard planes (TC, TT, TV)")
+	parser.add_argument("-train_or_test", default='train', type=str, help="select train or test dataset")
 	parser.add_argument('-save_img', action='store_true', help='save the mask prediction in selected folder. default=False')
 	args = parser.parse_args()
 
 	# folder path
 	gan_folder = 'Dataset/train_' + args.fetal_plane 
-	gan_samples_folder = gan_folder + '/test'
-	mask_folder = gan_folder + '/mask_test'
-	gan_segm = 'Dataset/train_' + args.fetal_plane + '/test_' + args.fetal_plane + '_stack'
+	gan_samples_folder = gan_folder + '/gan_images_' + args.train_or_test
+	mask_folder = gan_folder + '/mask_' + args.train_or_test
+	gan_segm = 'Dataset/train_' + args.fetal_plane + '/' + args.train_or_test + '_' + args.fetal_plane + '_stack'
 
 	samples_path = [gan_samples_folder + '/' + i for i in os.listdir(gan_samples_folder)]
 	mask_path = [mask_folder + '/' + i for i in os.listdir(mask_folder)]

@@ -43,8 +43,8 @@ def load_image(sample_path):
 		mask = tf.cast(mask, tf.float32)
 		input_image = tf.cast(real_image, tf.float32)
 
-		mask = tf.image.resize(mask, (224,224))
-		input_image = tf.image.resize(input_image, (224,224))
+		mask = tf.image.resize(mask, (176,256))
+		input_image = tf.image.resize(input_image, (176,256))
 		
 		return input_image, mask
 
@@ -70,15 +70,17 @@ def load_sample_test(sample_path):
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description='Main for semantic segmentation of US fetal image')
 	parser.add_argument("-folder_name", default='trial', type=str, help="nome of folder to load the data")
-	parser.add_argument("-model_epoch", default='20', type=str, help="number of model's epoch to load for testing")
+	parser.add_argument("-fetal_plane", default='TC', type=str, help="nome of featl standard planes (TC, TT, TV)")
+	parser.add_argument("-train_or_test", default='train', type=str, help="select train or test dataset")
+	parser.add_argument("-model_epoch", default='30', type=str, help="number of model's epoch to load for testing")
 
 	args = parser.parse_args()
 
 	## images_path
-	gan_path = 'Dataset/train_TC'
+	gan_path = 'Dataset/train_' + args.fetal_plane
 	save_folder = 'Model/' + args.folder_name
 	
-	gan_list = [gan_path + '/test' + '/' + i for i in os.listdir(gan_path + '/test')]
+	gan_list = [gan_path + f'/gan_images_' + args.train_or_test + '/' + i for i in os.listdir(gan_path + f'/gan_images_' + args.train_or_test)]
 	gan_list.sort() ## IMPORTANT for the enumeration 
 	
 	gan_dataset = tf.data.Dataset.list_files(gan_list, shuffle=False)
@@ -95,9 +97,9 @@ if __name__ == '__main__':
 	pred[pred < 0.5] = 0
 
 
-	gan_result = gan_path + '/segmentation_test'
-	raw_segmentation_path = gan_path + '/raw_segmentation_test'
-	mask_path = gan_path + '/mask_test'
+	gan_result = gan_path + '/segmentation_' + args.train_or_test
+	raw_segmentation_path = gan_path + '/raw_segmentation_' + args.train_or_test
+	mask_path = gan_path + '/mask_' + args.train_or_test
 	smart_makedir(gan_result)
 	smart_makedir(raw_segmentation_path)
 	smart_makedir(mask_path)
