@@ -320,6 +320,90 @@ def unet(input_size = (192,272,1)): #(params['x'],params['y'],1)
 
     return model
 
+## U_net VGG16 #######################################################################################
+def conv_block(input, num_filters):
+    """
+    Convolutional unit of VGG 16
+    """
+    x = tf.keras.layers.Conv2D(num_filters, 3, padding="same")(input)
+    x = tf.keras.layers.BatchNormalization()(x)
+    x = tf.keras.layers.Activation("relu")(x)
+ 
+    x = tf.keras.layers.Conv2D(num_filters, 3, padding="same")(x)
+    x = tf.keras.layers.BatchNormalization()(x)
+    x = tf.keras.layers.Activation("relu")(x)
+ 
+    return x
+ 
+def decoder_block(input, skip_features, num_filters):
+    """
+    Transpose convolution block of VGG 16 with skip connection
+    """
+    x = tf.keras.layers.Conv2DTranspose(num_filters, (2, 2), strides=2, padding="same")(input)
+    x = tf.keras.layers.Concatenate()([x, skip_features])
+    x = conv_block(x, num_filters)
+    return x
+ 
+def vgg16_unet(input_shape, weight='imagenet', trainable = False):
+    """
+    Unet architecture based on VGG 16 backbnone. Note that the last 
+    activation is tanh as in the generator of pix2pix
+
+    Parameters
+    ----------
+    input_shape : tuple
+        input shape
+
+    weight : string
+        download the weights of the VGG16 model:
+        - 'imagenet': load the VGG16 model pretrained on imagenet
+        - 'path/to/model' (i.e.'Images_classification_Brain_plane/models/VGG_16_/train_11/VGG_16'):
+           load the retrained model on Brain Plane dataset
+
+        default = 'imagenet'
+
+    trainable : bool
+        retraine the parameter of the VGG16 encoder. default='False'
+
+    Returns
+    -------
+    model : tensorflow model
+        VGG16 U net
+    """
+
+    ## input layer
+    inputs = tf.keras.layers.Input(input_shape)  ## the comment refers to a input shape (256,256,3)
+ 
+    ## pretrained model of vgg16
+    if weight == 'imagenet':
+        vgg16 = tf.keras.applications.VGG16(include_top=False, weights="imagenet", input_tensor=inputs)
+    
+    if weight == 'random':
+        vgg16 = tf.keras.applications.VGG16(include_top=False, weights=None, input_tensor=inputs)
+	
+    vgg16.trainable = trainable #retrain or not the encoder leyer  
+ 
+    ## encoder
+    s1 = vgg16.get_layer("block1_conv2").output         ## (512 x 512)
+    s2 = vgg16.get_layer("block2_conv2").output         ## (256 x 256)
+    s3 = vgg16.get_layer("block3_conv3").output         ## (128 x 128)
+    s4 = vgg16.get_layer("block4_conv3").output         ## (64 x 64)
+ 
+    ## bottleneck
+    b1 = vgg16.get_layer("block5_conv3").output         ## (32 x 32)
+ 
+    ## decoder with skip connection
+    d1 = decoder_block(b1, s4, 512)                     ## (64 x 64)
+    d2 = decoder_block(d1, s3, 256)                     ## (128 x 128)
+    d3 = decoder_block(d2, s2, 128)                     ## (256 x 256)
+    d4 = decoder_block(d3, s1, 64)                      ## (512 x 512)
+ 
+    ## last layer 
+    initializer = tf.random_normal_initializer(0., 0.02)
+    outputs = tf.keras.layers.Conv2D(3, 3, padding="same", kernel_initializer=initializer, activation="tanh")(d4)   ## activation is tanh for as in pix2pix generator model
+ 
+    model = tf.keras.Model(inputs, outputs, name="VGG16_U-Net")
+    return model
 #####################################################################################################
 
 def dataset_visualization(dataset, take_ind=5):
