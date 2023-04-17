@@ -72,7 +72,6 @@ def random_jitter(input_image, mask, rot=False):
 		input imgage, i.e. CAM 
 	mask : tensorflow tensor
 		real image, i.e. US image
-input_image, mask
 	
 	"""
 	# resize the imagage to 206*286
@@ -119,6 +118,10 @@ def load_sample_train(sample_path):
 	input_image, mask = random_jitter(input_image, mask, rot=False)
 	input_image, mask = normalize(input_image, mask)
 
+	# The U_net VGG_16 requires a 3 channels images
+	mask = tf.image.grayscale_to_rgb(mask)
+	input_image = tf.image.grayscale_to_rgb(input_image)
+
 	return input_image, mask
 
 
@@ -160,6 +163,10 @@ def load_sample_test(sample_path):
 	"""
 	input_image, mask = load_image(sample_path)
 	input_image, mask = normalize(input_image, mask)
+
+	# The U_net VGG_16 requires a 3 channels images
+	mask = tf.image.grayscale_to_rgb(mask)
+	input_image = tf.image.grayscale_to_rgb(input_image)
 
 	return input_image, mask
 
@@ -275,13 +282,16 @@ if __name__ == '__main__':
 		                            	  			num_parallel_calls=tf.data.AUTOTUNE)
 		val_dataset = val_dataset.batch(semantic_dict['batch_size'])
 
+		img, mask = load_image(train_list[0])
+		print(img.shape, mask.shape)
+
 		if args.plot : 
 			dataset_visualization(train_dataset, take_ind=10)
 
 			# data augumentation 
-			# for i, (img,mask) in enumerate(iter(train_dataset.take(1))):
-			# 		for i in range(1):
-			# 			print(img.shape, mask.shape)
+			for i, (img,mask) in enumerate(iter(train_dataset.take(1))):
+					for i in range(1):
+						print(img.shape, mask.shape)
 			# 			rj_img, rj_mask = random_jitter(img, mask)
 			# 			fig, ax = plt.subplots(nrows=1, ncols=3, figsize=(12,6), num=f'data augumentation{i}', tight_layout=True)
 			# 			ax[0].imshow(rj_img[0,:,:,:],cmap='gray')
@@ -297,7 +307,8 @@ if __name__ == '__main__':
 			plt.show()
 
 		# U-net model Training
-		model = unet(input_size = (176,256,1))
+		# model = unet(input_size = (176,256,1))
+		model = vgg16_unet(input_shape = (176,256,3), weight='random', trainable = True)
 		print(model.summary())
 
 		opt = Adam(learning_rate = semantic_dict['learning_rate'], beta_1=semantic_dict['momentum'])
