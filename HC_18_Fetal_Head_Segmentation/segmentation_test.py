@@ -65,7 +65,7 @@ if __name__ == '__main__':
 			name_pred = test_list[i].split('/')[-1]
 			im.save(results_path + '/pred_' + name_pred)
 
-			fig, arr = plt.subplots(nrows=1, ncols=3, figsize=(12,6), num=f'US images and mask sample{i}', tight_layout=True)
+			# fig, arr = plt.subplots(nrows=1, ncols=3, figsize=(12,6), num=f'US images and mask sample{i}', tight_layout=True)
 
 	## TEST vs VALIDATION curves
 	accuracy = np.load(save_folder + '/history_accuracy.npy')
@@ -90,16 +90,17 @@ if __name__ == '__main__':
 		pred_mask_s.save(hc_path + f'/pred_mask_{i}.png')
 
 		fig, arr = plt.subplots(nrows=1, ncols=3, figsize=(12,6), num=f'US images and mask sample{i}', tight_layout=True)
-		arr[0].imshow(image[0,:,:,:], cmap='gray')
+		print(np.max(image[0,:,:,:]), np.min(image[0,:,:,:]))
+		arr[0].imshow((image[0,:,:,:]+1.)/2., cmap='gray')
 		arr[0].set_title('US fetal head')
 		arr[0].axis('off')
 
-		arr[1].imshow(mask[0,:,:,:], cmap='gray')
+		arr[1].imshow((mask[0,:,:,:]+1.)/2., cmap='gray')
 		# arr[1].imshow(ell_real, cmap='jet',alpha=0.6)
 		arr[1].set_title('Segmentation mask')
 		arr[1].axis('off')
 
-		arr[2].imshow(pred[i,:,:,:], cmap='gray')
+		arr[2].imshow((pred[i,:,:,:]+1.)/2., cmap='gray')
 		# arr[2].imshow(ell, cmap='jet',alpha=0.6)
 		arr[2].set_title('Prediction mask + fitting ellipse')
 		arr[2].axis('off')
